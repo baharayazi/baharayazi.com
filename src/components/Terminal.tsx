@@ -1,10 +1,27 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from 'react';
 import { profile } from '@/content/profile';
 import { useTheme, Theme } from '@/hooks/useTheme';
 import { ThemeToggle } from './ThemeToggle';
 import { CommandChips } from './CommandChips';
+import {
+  COMPLETIONS,
+  OutputType,
+  TerminalContext,
+  isCoarsePointer,
+  parseCommand,
+  prefersReducedMotion,
+} from './terminal-context';
+import { Effects, EffectName } from './Effects';
+import { KONAMI_SEQUENCE } from '@/content/easter-eggs';
 import { WhoamiOutput } from './outputs/WhoamiOutput';
 import { AboutOutput } from './outputs/AboutOutput';
 import { ExperienceOutput } from './outputs/ExperienceOutput';
@@ -17,57 +34,50 @@ import { CvOutput } from './outputs/CvOutput';
 import { LsOutput } from './outputs/LsOutput';
 import { HelpOutput } from './outputs/HelpOutput';
 import { SudoOutput } from './outputs/SudoOutput';
+import { MischiefOutput } from './outputs/MischiefOutput';
 import { NotFoundOutput } from './outputs/NotFoundOutput';
 import { ThemeOutput } from './outputs/ThemeOutput';
+import { FunOutput } from './outputs/FunOutput';
+import { CoffeeOutput } from './outputs/CoffeeOutput';
+import { BaharOutput } from './outputs/BaharOutput';
+import { GitLogOutput } from './outputs/GitLogOutput';
+import { HistoryOutput } from './outputs/HistoryOutput';
+import { PingOutput } from './outputs/PingOutput';
+import { DateOutput } from './outputs/DateOutput';
+import { UptimeOutput } from './outputs/UptimeOutput';
+import { MatrixOutput } from './outputs/MatrixOutput';
+import { KonamiOutput } from './outputs/KonamiOutput';
 
-export type OutputType =
-  | 'whoami'
-  | 'about'
-  | 'experience'
-  | 'projects'
-  | 'research'
-  | 'skills'
-  | 'education'
-  | 'contact'
-  | 'cv'
-  | 'ls'
-  | 'help'
-  | 'theme'
-  | 'sudo'
-  | 'not_found'
-  | 'empty';
+export type { OutputType };
 
 export interface HistoryItem {
   id: string;
   command: string;
   outputType: OutputType;
   themeState?: Theme;
-  rawCommand?: string;
+  mischief?: { error: string; quip: string; attempt: number };
+  /** Lines for one-liner jokes (vim, exit, tea...). */
+  lines?: string[];
+  /** Commands typed so far, for `history`. */
+  entries?: string[];
+  /** When the command ran, for `date` and `uptime`. */
+  at?: number;
+  reduced?: boolean;
 }
 
-const AUTOCOMPLETE_COMMANDS = [
-  'whoami',
-  'about',
-  'experience',
-  'projects',
-  'research',
-  'skills',
-  'education',
-  'contact',
-  'cv',
-  'ls',
-  'help',
-  'theme',
-  'clear',
-  'resume',
-  'work',
-  'jobs',
-  'email',
-  'links',
-  'github',
-  'linkedin',
-  'info',
-];
+const BOOT_COMMAND = 'whoami';
+
+// useLayoutEffect warns during static prerendering; fall back to useEffect there.
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+function Prompt() {
+  return (
+    <span className="mr-2 shrink-0 select-none font-semibold text-term-prompt">
+      {profile.meta.prompt}
+    </span>
+  );
+}
 
 export const Terminal: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -78,276 +88,230 @@ export const Terminal: React.FC = () => {
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [pendingInput, setPendingInput] = useState('');
 
-  // Auto-typing states
   const [isAutoTyping, setIsAutoTyping] = useState(true);
   const [autoTypingText, setAutoTypingText] = useState('');
+  const [effect, setEffect] = useState<EffectName | null>(null);
+  const mischiefCountRef = useRef(0);
+  /** Everything typed this visit, like a real shell history. */
+  const typedRef = useRef<string[]>([]);
+  const endEffect = useCallback(() => setEffect(null), []);
 
-  const terminalEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const screenRef = useRef<HTMLDivElement | null>(null);
   const autoTypingCompletedRef = useRef(false);
-
-  const scrollToBottom = useCallback((smooth = true) => {
-    if (terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({
-        behavior: smooth ? 'smooth' : 'auto',
-      });
-    }
-  }, []);
+  const idCounterRef = useRef(0);
+  /** Entry to bring to the top of the screen after the next render. */
+  const scrollTargetRef = useRef<string | null>(null);
 
   const focusInput = useCallback(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
+    inputRef.current?.focus({ preventScroll: true });
   }, []);
 
-  // Finish typing instantly
+  /** Focus only on devices with a precise pointer, so phones do not pop up the keyboard. */
+  const focusInputIfDesktop = useCallback(() => {
+    if (!isCoarsePointer()) focusInput();
+  }, [focusInput]);
+
   const finishAutoTyping = useCallback(() => {
     if (autoTypingCompletedRef.current) return;
     autoTypingCompletedRef.current = true;
     setIsAutoTyping(false);
     setAutoTypingText('');
-    setHistory((prev) => {
-      // If whoami is already in history, don't duplicate
-      if (prev.some((item) => item.outputType === 'whoami')) return prev;
-      return [
-        ...prev,
-        {
-          id: 'init-whoami',
-          command: 'whoami',
-          outputType: 'whoami',
-        },
-      ];
-    });
-    // Scroll and focus
-    setTimeout(() => {
-      scrollToBottom(false);
-      focusInput();
-    }, 10);
-  }, [focusInput, scrollToBottom]);
+    setHistory((prev) =>
+      prev.some((item) => item.id === 'init-whoami')
+        ? prev
+        : [{ id: 'init-whoami', command: BOOT_COMMAND, outputType: 'whoami' }, ...prev]
+    );
+    // Wait one frame so the real input exists before focusing it.
+    requestAnimationFrame(() => focusInputIfDesktop());
+  }, [focusInputIfDesktop]);
 
-  // Initial auto-typing logic
+  // Boot sequence: type "whoami" once, then show its output.
   useEffect(() => {
-    // Check prefers-reduced-motion
-    const prefersReducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (prefersReducedMotion) {
+    if (prefersReducedMotion()) {
       finishAutoTyping();
       return;
     }
 
-    const targetText = 'whoami';
-    let currentIdx = 0;
+    let idx = 0;
     let timerId: ReturnType<typeof setTimeout> | null = null;
 
     const typeNextChar = () => {
       if (autoTypingCompletedRef.current) return;
-
-      if (currentIdx < targetText.length) {
-        currentIdx += 1;
-        setAutoTypingText(targetText.slice(0, currentIdx));
+      if (idx < BOOT_COMMAND.length) {
+        idx += 1;
+        setAutoTypingText(BOOT_COMMAND.slice(0, idx));
         timerId = setTimeout(typeNextChar, 90);
       } else {
-        // Pause briefly after typing "whoami" before outputting
-        timerId = setTimeout(() => {
-          finishAutoTyping();
-        }, 120);
+        timerId = setTimeout(finishAutoTyping, 160);
       }
     };
 
-    // Start typing after initial brief pause
-    timerId = setTimeout(typeNextChar, 250);
+    timerId = setTimeout(typeNextChar, 300);
 
-    // Any user action during typing finishes it instantly
-    const handleUserAction = () => {
-      finishAutoTyping();
-    };
-
-    window.addEventListener('keydown', handleUserAction, { capture: true, once: true });
-    window.addEventListener('pointerdown', handleUserAction, { capture: true, once: true });
-    window.addEventListener('touchstart', handleUserAction, { capture: true, once: true });
+    const skip = () => finishAutoTyping();
+    const opts = { capture: true } as const;
+    window.addEventListener('keydown', skip, opts);
+    window.addEventListener('pointerdown', skip, opts);
 
     return () => {
       if (timerId) clearTimeout(timerId);
-      window.removeEventListener('keydown', handleUserAction, { capture: true });
-      window.removeEventListener('pointerdown', handleUserAction, { capture: true });
-      window.removeEventListener('touchstart', handleUserAction, { capture: true });
+      window.removeEventListener('keydown', skip, opts);
+      window.removeEventListener('pointerdown', skip, opts);
     };
   }, [finishAutoTyping]);
 
-  // Auto-scroll when history or typing updates
-  useEffect(() => {
-    scrollToBottom();
-  }, [history, autoTypingText, scrollToBottom]);
+  // Keep the newest command in view. Long outputs (experience, help) start at
+  // the top of the screen instead of scrolling straight past their first lines.
+  useIsomorphicLayoutEffect(() => {
+    const screen = screenRef.current;
+    if (!screen) return;
+    const behavior: ScrollBehavior = prefersReducedMotion() ? 'auto' : 'smooth';
+    const targetId = scrollTargetRef.current;
+    scrollTargetRef.current = null;
 
-  // Command parser and runner
+    if (targetId) {
+      const entry = screen.querySelector<HTMLElement>(`[data-entry="${targetId}"]`);
+      if (entry) {
+        screen.scrollTo({ top: Math.max(entry.offsetTop - 16, 0), behavior });
+        return;
+      }
+    }
+    screen.scrollTo({ top: screen.scrollHeight, behavior });
+  }, [history, autoTypingText]);
+
+  // Konami code: up up down down left right left right b a.
+  useEffect(() => {
+    let pos = 0;
+    const onKey = (e: KeyboardEvent) => {
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      pos = key === KONAMI_SEQUENCE[pos] ? pos + 1 : key === KONAMI_SEQUENCE[0] ? 1 : 0;
+      if (pos < KONAMI_SEQUENCE.length) return;
+      pos = 0;
+      e.preventDefault();
+      setInputValue('');
+      const id = `cmd-${++idCounterRef.current}`;
+      scrollTargetRef.current = id;
+      setHistory((prev) => [...prev, { id, command: '↑ ↑ ↓ ↓ ← → ← → b a', outputType: 'konami' }]);
+      if (!prefersReducedMotion()) setEffect('blossom');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // On desktop, typing anywhere on the page goes to the command line.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isAutoTyping || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key.length !== 1) return;
+      const active = document.activeElement;
+      if (active && active !== document.body && active.tagName !== 'MAIN') return;
+      focusInput();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isAutoTyping, focusInput]);
+
   const executeCommand = useCallback(
     (rawCmd: string) => {
-      // If typing was still going, complete it first
-      if (isAutoTyping) {
-        finishAutoTyping();
-      }
+      finishAutoTyping();
 
-      const trimmed = rawCmd.trim();
-
-      // Clear input and reset history navigation
+      const display = rawCmd.replace(/\s+/g, ' ').trim();
       setInputValue('');
       setHistoryIndex(-1);
       setPendingInput('');
 
-      if (!trimmed) {
-        // Empty command: display an empty prompt line
-        setHistory((prev) => [
-          ...prev,
-          {
-            id: `cmd-${Date.now()}-${Math.random()}`,
-            command: '',
-            outputType: 'empty',
-          },
-        ]);
-        return;
-      }
+      const parsed = parseCommand(display);
 
-      // Add to command history
-      setCommandHistory((prev) => [...prev, trimmed]);
+      if (display) typedRef.current.push(display);
 
-      // Check for sudo
-      if (trimmed.toLowerCase().startsWith('sudo')) {
-        setHistory((prev) => [
-          ...prev,
-          {
-            id: `cmd-${Date.now()}-${Math.random()}`,
-            command: trimmed,
-            outputType: 'sudo',
-          },
-        ]);
-        return;
-      }
-
-      // Parse command and alias
-      const commandName = trimmed.toLowerCase();
-
-      // Clear command: empties screen without echoing
-      if (commandName === 'clear') {
+      if (parsed.kind === 'clear') {
         setHistory([]);
+        if (display) setCommandHistory((prev) => [...prev, display]);
         return;
       }
 
-      // Theme command: toggles theme and displays switched message
-      if (commandName === 'theme') {
-        const nextTheme = toggleTheme();
-        setHistory((prev) => [
-          ...prev,
-          {
-            id: `cmd-${Date.now()}-${Math.random()}`,
-            command: trimmed,
-            outputType: 'theme',
-            themeState: nextTheme,
-          },
-        ]);
+      const id = `cmd-${++idCounterRef.current}`;
+
+      if (parsed.kind === 'empty') {
+        setHistory((prev) => [...prev, { id, command: '', outputType: 'empty' }]);
         return;
       }
 
-      // Normal commands & aliases mapping
-      let resolvedType: OutputType | null = null;
-
-      switch (commandName) {
-        case 'whoami':
-        case 'info':
-          resolvedType = 'whoami';
-          break;
-        case 'about':
-          resolvedType = 'about';
-          break;
-        case 'experience':
-        case 'work':
-        case 'jobs':
-          resolvedType = 'experience';
-          break;
-        case 'projects':
-          resolvedType = 'projects';
-          break;
-        case 'research':
-          resolvedType = 'research';
-          break;
-        case 'skills':
-          resolvedType = 'skills';
-          break;
-        case 'education':
-          resolvedType = 'education';
-          break;
-        case 'contact':
-        case 'email':
-        case 'links':
-        case 'github':
-        case 'linkedin':
-          resolvedType = 'contact';
-          break;
-        case 'cv':
-        case 'resume':
-          resolvedType = 'cv';
-          break;
-        case 'ls':
-          resolvedType = 'ls';
-          break;
-        case 'help':
-        case '?':
-        case 'man':
-          resolvedType = 'help';
-          break;
-        default:
-          resolvedType = 'not_found';
-          break;
-      }
-
-      setHistory((prev) => [
-        ...prev,
-        {
-          id: `cmd-${Date.now()}-${Math.random()}`,
-          command: trimmed,
-          outputType: resolvedType,
-          rawCommand: trimmed,
-        },
-      ]);
-    },
-    [isAutoTyping, finishAutoTyping, toggleTheme]
-  );
-
-  // Key navigation for input
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Autocomplete on Tab
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const current = inputValue.trim().toLowerCase();
-      if (!current) return;
-
-      const matches = AUTOCOMPLETE_COMMANDS.filter((cmd) =>
-        cmd.startsWith(current)
+      setCommandHistory((prev) =>
+        prev[prev.length - 1] === display ? prev : [...prev, display]
       );
 
-      // Tab autocompletes when exactly one command matches
-      if (matches.length === 1) {
-        setInputValue(matches[0]);
+      scrollTargetRef.current = id;
+
+      let item: HistoryItem;
+      if (parsed.kind === 'theme') {
+        item = { id, command: display, outputType: 'theme', themeState: toggleTheme() };
+      } else if (parsed.kind === 'sudo') {
+        item = { id, command: display, outputType: 'sudo' };
+      } else if (parsed.kind === 'mischief') {
+        mischiefCountRef.current += 1;
+        item = {
+          id,
+          command: display,
+          outputType: 'mischief',
+          mischief: { error: parsed.error, quip: parsed.quip, attempt: mischiefCountRef.current },
+        };
+      } else if (parsed.kind === 'fun') {
+        item = { id, command: display, outputType: 'fun', lines: parsed.lines };
+      } else if (parsed.kind === 'output') {
+        item = { id, command: display, outputType: parsed.type };
+        if (parsed.type === 'history') item.entries = [...typedRef.current];
+        if (parsed.type === 'date' || parsed.type === 'uptime') item.at = Date.now();
+        if (parsed.type === 'matrix') {
+          item.reduced = prefersReducedMotion();
+          if (!item.reduced) setEffect('matrix');
+        }
+      } else {
+        item = { id, command: display, outputType: 'not_found' };
       }
+      setHistory((prev) => [...prev, item]);
+    },
+    [finishAutoTyping, toggleTheme]
+  );
+
+  /** Run a command from a click (chip, ls entry, help entry). */
+  const runFromClick = useCallback(
+    (cmd: string) => {
+      executeCommand(cmd);
+      focusInputIfDesktop();
+    },
+    [executeCommand, focusInputIfDesktop]
+  );
+
+  const contextValue = useMemo(() => ({ run: runFromClick }), [runFromClick]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab') {
+      const current = inputValue.trim().toLowerCase();
+      if (!current) return; // let Tab move focus normally
+      e.preventDefault();
+      const matches = COMPLETIONS.filter((cmd) => cmd.startsWith(current));
+      if (matches.length === 1) setInputValue(matches[0]);
       return;
     }
 
-    // Command execution on Enter
     if (e.key === 'Enter') {
       e.preventDefault();
       executeCommand(inputValue);
       return;
     }
 
-    // History walk ArrowUp
+    if (e.key === 'l' && e.ctrlKey) {
+      e.preventDefault();
+      executeCommand('clear');
+      return;
+    }
+
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (commandHistory.length === 0) return;
-
       if (historyIndex === -1) {
-        // Save current input before navigating
         setPendingInput(inputValue);
         const newIdx = commandHistory.length - 1;
         setHistoryIndex(newIdx);
@@ -360,22 +324,29 @@ export const Terminal: React.FC = () => {
       return;
     }
 
-    // History walk ArrowDown
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (historyIndex === -1) return;
-
       if (historyIndex < commandHistory.length - 1) {
         const newIdx = historyIndex + 1;
         setHistoryIndex(newIdx);
         setInputValue(commandHistory[newIdx]);
       } else {
-        // Restore pending input
         setHistoryIndex(-1);
         setInputValue(pendingInput);
       }
-      return;
     }
+  };
+
+  // Clicking empty space focuses the input, but never steals a text selection
+  // (so people can copy an email address) and never opens a phone keyboard.
+  const handleScreenClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isCoarsePointer()) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('a, button, input')) return;
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) return;
+    focusInput();
   };
 
   const renderOutput = (item: HistoryItem) => {
@@ -406,132 +377,124 @@ export const Terminal: React.FC = () => {
         return <ThemeOutput theme={item.themeState || theme} />;
       case 'sudo':
         return <SudoOutput />;
+      case 'mischief':
+        return item.mischief ? <MischiefOutput {...item.mischief} /> : null;
+      case 'fun':
+        return <FunOutput lines={item.lines ?? []} />;
+      case 'coffee':
+        return <CoffeeOutput />;
+      case 'bahar':
+        return <BaharOutput />;
+      case 'gitlog':
+        return <GitLogOutput />;
+      case 'history':
+        return <HistoryOutput entries={item.entries ?? []} />;
+      case 'ping':
+        return <PingOutput />;
+      case 'date':
+        return <DateOutput at={item.at ?? 0} />;
+      case 'uptime':
+        return <UptimeOutput at={item.at ?? 0} />;
+      case 'matrix':
+        return <MatrixOutput reduced={!!item.reduced} />;
+      case 'konami':
+        return <KonamiOutput />;
       case 'not_found':
-        return <NotFoundOutput command={item.rawCommand || item.command} />;
-      case 'empty':
+        return <NotFoundOutput command={item.command} />;
       default:
         return null;
     }
   };
 
   return (
-    <div
-      className="w-full max-w-[880px] h-[88vh] max-h-[820px] min-h-[520px] flex flex-col rounded-lg border border-term-border bg-term-panel overflow-hidden transition-colors"
-      onClick={() => {
-        // Clicking terminal background focuses input
-        focusInput();
-      }}
-    >
-      {/* Terminal Title Bar */}
-      <div className="h-10 px-3 sm:px-4 bg-term-bar border-b border-term-border flex items-center justify-between select-none shrink-0">
-        <div className="flex items-center space-x-2">
-          <span
-            className="w-3 h-3 rounded-full bg-[#ff5f56] inline-block border border-[#e0443e]/40"
-            aria-hidden="true"
-          />
-          <span
-            className="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block border border-[#dea123]/40"
-            aria-hidden="true"
-          />
-          <span
-            className="w-3 h-3 rounded-full bg-[#27c93f] inline-block border border-[#1aab29]/40"
-            aria-hidden="true"
-          />
-        </div>
+    <TerminalContext.Provider value={contextValue}>
+      <div className="terminal-window flex h-[calc(100dvh-4.5rem)] max-h-[820px] min-h-[460px] w-full max-w-[880px] flex-col overflow-hidden rounded-xl border border-term-border bg-term-panel transition-colors">
+        {/* Title bar */}
+        <div className="relative flex h-10 shrink-0 select-none items-center justify-between border-b border-term-border bg-term-bar px-3 sm:px-4">
+          <div className="flex items-center gap-2" aria-hidden="true">
+            <span className="size-3 rounded-full bg-[#ff5f56]" />
+            <span className="size-3 rounded-full bg-[#ffbd2e]" />
+            <span className="size-3 rounded-full bg-[#27c93f]" />
+          </div>
 
-        <div className="text-xs sm:text-sm font-mono text-term-dim truncate px-2">
-          {profile.meta.windowTitle}
-        </div>
+          <div className="pointer-events-none absolute inset-x-24 truncate text-center font-mono text-xs text-term-dim sm:text-sm">
+            {profile.meta.windowTitle}
+          </div>
 
-        <div onClick={(e) => e.stopPropagation()}>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
-      </div>
 
-      {/* Terminal Screen */}
-      <div
-        ref={screenRef}
-        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 font-mono text-xs sm:text-sm leading-relaxed"
-      >
-        {/* Accessible Output Log */}
+        {/* Screen */}
         <div
-          role="log"
-          aria-live="polite"
-          aria-label="Terminal output log"
-          className="space-y-4"
+          ref={screenRef}
+          onClick={handleScreenClick}
+          className="terminal-screen relative flex-1 overflow-y-auto overscroll-contain p-4 font-mono text-[13px] leading-relaxed sm:p-6 sm:text-sm"
         >
-          {history.map((item) => (
-            <div key={item.id} className="space-y-1.5">
-              {item.command !== '' && (
-                <div className="flex items-baseline flex-wrap">
-                  <span className="text-term-prompt font-semibold mr-2 select-none">
-                    {profile.meta.prompt}
-                  </span>
-                  <span className="text-term-text font-medium break-all">
-                    {item.command}
-                  </span>
-                </div>
-              )}
-              <div className="text-term-text">{renderOutput(item)}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Live Auto-Typing Prompt (if active) */}
-        {isAutoTyping && (
-          <div className="flex items-baseline flex-wrap">
-            <span className="text-term-prompt font-semibold mr-2 select-none">
-              {profile.meta.prompt}
-            </span>
-            <span className="text-term-text font-medium">{autoTypingText}</span>
-            <span
-              className="inline-block w-2 h-4 bg-term-prompt ml-0.5 animate-pulse align-middle"
-              aria-hidden="true"
-            />
-          </div>
-        )}
-
-        {/* Real Interactive Input Line (active when not auto-typing) */}
-        {!isAutoTyping && (
           <div
-            className="flex items-baseline flex-wrap pt-1"
-            onClick={(e) => e.stopPropagation()}
+            role="log"
+            aria-live="polite"
+            aria-label="Terminal output log"
+            className="space-y-5"
           >
-            <label
-              htmlFor="terminal-command-input"
-              className="text-term-prompt font-semibold mr-2 select-none shrink-0"
-            >
-              {profile.meta.prompt}
-            </label>
-            <div className="flex-1 min-w-[140px] flex items-center">
-              <input
-                ref={inputRef}
-                id="terminal-command-input"
-                type="text"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
-                aria-label="Terminal command line"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="w-full bg-transparent text-term-text font-mono text-base sm:text-sm outline-none border-none p-0 focus:ring-0 focus:outline-none"
+            {history.map((item) => (
+              <div key={item.id} data-entry={item.id} className="entry space-y-2">
+                <div className="flex flex-wrap items-baseline">
+                  <Prompt />
+                  <span className="break-all font-medium text-term-text">{item.command}</span>
+                </div>
+                {item.outputType !== 'empty' && (
+                  <div className="text-term-text">{renderOutput(item)}</div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {isAutoTyping ? (
+            <div className="flex flex-wrap items-baseline">
+              <Prompt />
+              <span className="font-medium text-term-text">{autoTypingText}</span>
+              <span
+                className="ml-0.5 inline-block h-[1.1em] w-[0.6em] animate-blink self-center bg-term-prompt"
+                aria-hidden="true"
               />
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="mt-5 flex flex-wrap items-baseline">
+              <label
+                htmlFor="terminal-command-input"
+                className="mr-2 shrink-0 select-none font-semibold text-term-prompt"
+              >
+                {profile.meta.prompt}
+              </label>
+              <div className="flex min-w-[140px] flex-1 items-center">
+                <input
+                  ref={inputRef}
+                  id="terminal-command-input"
+                  type="text"
+                  inputMode="text"
+                  enterKeyHint="go"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  aria-label="Terminal command line"
+                  aria-describedby="terminal-hint"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="terminal-input w-full border-none bg-transparent p-0 font-mono text-base text-term-text outline-none focus:outline-none focus:ring-0 sm:text-sm"
+                />
+              </div>
+            </div>
+          )}
+          <p id="terminal-hint" className="sr-only">
+            Type a command and press Enter. Type help to see every command.
+          </p>
+        </div>
 
-        <div ref={terminalEndRef} aria-hidden="true" />
+        <CommandChips onRunCommand={runFromClick} />
       </div>
-
-      {/* Bottom Command Chips */}
-      <div onClick={(e) => e.stopPropagation()}>
-        <CommandChips
-          onRunCommand={(cmd) => executeCommand(cmd)}
-          onFocusInput={focusInput}
-        />
-      </div>
-    </div>
+      <Effects effect={effect} onDone={endEffect} />
+    </TerminalContext.Provider>
   );
 };
