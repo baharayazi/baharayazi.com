@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #0d1117;
+  --color-panel: #11161b;
+  --color-bar: #1b222a;
+  --color-text: #d6dee6;
+  --color-dim: #8fa0ae;
+  --color-prompt: #7ee2a8;
+  --color-accent: #f2b35e;
+  --color-link: #6cb6e8;
+  --color-border: #26303a;
+}
+
+[data-theme='light'],
+.light {
+  --color-bg: #e9edf1;
+  --color-panel: #fbfcfd;
+  --color-bar: #e4e9ee;
+  --color-text: #1f2a33;
+  --color-dim: #5d6b77;
+  --color-prompt: #14703f;
+  --color-accent: #9a5700;
+  --color-link: #0b5fa5;
+  --color-border: #cfd7de;
+}
+
+[data-theme='dark'],
+.dark {
+  --color-bg: #0d1117;
+  --color-panel: #11161b;
+  --color-bar: #1b222a;
+  --color-text: #d6dee6;
+  --color-dim: #8fa0ae;
+  --color-prompt: #7ee2a8;
+  --color-accent: #f2b35e;
+  --color-link: #6cb6e8;
+  --color-border: #26303a;
+}
+
+/* System monospace font */
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Flat scrollbars for terminal aesthetic */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bar);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-dim);
+}
+
+/* Selection */
+::selection {
+  background: var(--color-accent);
+  color: var(--color-panel);
+}
+
+/* Accessible focus outline */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
