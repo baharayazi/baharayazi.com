@@ -33,30 +33,15 @@ export function useTheme() {
     }
     metaThemeColor.setAttribute(
       'content',
-      newTheme === 'dark' ? '#0d1117' : '#e9edf1'
+      newTheme === 'dark' ? '#0b0f14' : '#e9edf1'
     );
   }, []);
 
-  // Initialize theme on mount
+  // Initialize from what the pre-paint script in layout.tsx already applied,
+  // so the toggle label matches the page without a second DOM change.
   useEffect(() => {
-    let initialTheme: Theme = 'dark';
-
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'dark' || saved === 'light') {
-        initialTheme = saved;
-      } else if (
-        typeof window !== 'undefined' &&
-        window.matchMedia &&
-        window.matchMedia('(prefers-color-scheme: light)').matches
-      ) {
-        initialTheme = 'light';
-      }
-    } catch {
-      // In private browsing or storage disabled, fallback to dark default
-      initialTheme = 'dark';
-    }
-
+    const applied = document.documentElement.getAttribute('data-theme');
+    const initialTheme: Theme = applied === 'light' ? 'light' : 'dark';
     setThemeState(initialTheme);
     applyTheme(initialTheme);
     setMounted(true);

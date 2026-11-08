@@ -16,11 +16,9 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ theme, onToggle }) => 
       onClick={onToggle}
       aria-label={`Switch to ${nextTheme} theme`}
       title={`Switch to ${nextTheme} theme (or type "theme")`}
-      className="text-xs px-2 py-0.5 rounded border border-term-border text-term-dim hover:text-term-text hover:border-term-dim transition-colors focus-visible:ring-2 focus-visible:ring-term-accent focus-visible:outline-none"
+      className="relative z-10 flex items-center gap-1 rounded-md border border-term-border px-2 py-0.5 font-mono text-xs text-term-dim transition-colors hover:border-term-dim hover:text-term-text"
     >
-      <span aria-hidden="true" className="mr-1">
-        {theme === 'dark' ? '☼' : '☾'}
-      </span>
+      <span aria-hidden="true">{theme === 'dark' ? '☾' : '☼'}</span>
       <span>{theme}</span>
     </button>
   );

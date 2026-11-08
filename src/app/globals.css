@@ -2,84 +2,213 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --color-bg: #0d1117;
+/* Dark theme is the default; [data-theme] on <html> switches it. */
+:root,
+[data-theme='dark'] {
+  --color-bg: #0b0f14;
   --color-panel: #11161b;
-  --color-bar: #1b222a;
+  --color-bar: #171d24;
   --color-text: #d6dee6;
   --color-dim: #8fa0ae;
   --color-prompt: #7ee2a8;
   --color-accent: #f2b35e;
   --color-link: #6cb6e8;
+  --color-pink: #f5a3c7;
+  --color-violet: #b9adf7;
+  --color-red: #f28b82;
   --color-border: #26303a;
+  --color-border-strong: #4a5867;
+  --color-grid: #1a222b;
+  --color-glow: rgba(126, 226, 168, 0.07);
+  --window-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.02);
+  color-scheme: dark;
 }
 
-[data-theme='light'],
-.light {
+[data-theme='light'] {
   --color-bg: #e9edf1;
   --color-panel: #fbfcfd;
-  --color-bar: #e4e9ee;
+  --color-bar: #eef2f5;
   --color-text: #1f2a33;
   --color-dim: #5d6b77;
   --color-prompt: #14703f;
   --color-accent: #9a5700;
   --color-link: #0b5fa5;
+  --color-pink: #b4326e;
+  --color-violet: #5b46c2;
+  --color-red: #c0392b;
   --color-border: #cfd7de;
+  --color-border-strong: #9aa7b3;
+  --color-grid: #d3dbe2;
+  --color-glow: rgba(180, 50, 110, 0.06);
+  --window-shadow: 0 24px 60px -24px rgba(31, 42, 51, 0.28), 0 0 0 1px rgba(31, 42, 51, 0.02);
+  color-scheme: light;
 }
 
-[data-theme='dark'],
-.dark {
-  --color-bg: #0d1117;
-  --color-panel: #11161b;
-  --color-bar: #1b222a;
-  --color-text: #d6dee6;
-  --color-dim: #8fa0ae;
-  --color-prompt: #7ee2a8;
-  --color-accent: #f2b35e;
-  --color-link: #6cb6e8;
-  --color-border: #26303a;
-}
-
-/* System monospace font */
 html,
 body {
   padding: 0;
   margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    'Liberation Mono', 'Courier New', monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   background-color: var(--color-bg);
   color: var(--color-text);
   min-height: 100vh;
   min-height: 100dvh;
 }
 
-/* Flat scrollbars for terminal aesthetic */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Soft dot grid plus a faint glow behind the window. */
+body {
+  background-image: radial-gradient(ellipse at 50% 0%, var(--color-glow), transparent 60%),
+    radial-gradient(var(--color-grid) 1px, transparent 1px);
+  background-size: 100% 100%, 22px 22px;
+  background-attachment: fixed;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--color-bar);
+.terminal-window {
+  box-shadow: var(--window-shadow);
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+/* Name in the whoami card: amber to pink, solid amber where clipping is unsupported. */
+.name-gradient {
+  display: inline-block;
+  color: var(--color-accent);
+}
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .name-gradient {
+    background-image: linear-gradient(90deg, var(--color-accent), var(--color-pink));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+@media (forced-colors: active) {
+  .name-gradient {
+    -webkit-text-fill-color: CanvasText;
+    background-image: none;
+  }
+}
+
+.term-link {
+  color: var(--color-link);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-link) 45%, transparent);
+  text-underline-offset: 3px;
   border-radius: 2px;
+  transition: text-decoration-color 0.15s;
+}
+.term-link:hover {
+  text-decoration-color: var(--color-link);
 }
 
-::-webkit-scrollbar-thumb:hover {
+.terminal-input {
+  caret-color: var(--color-prompt);
+}
+
+/* Each new entry fades in, unless the visitor prefers less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .entry {
+    animation: entry-in 0.22s ease-out both;
+  }
+}
+@keyframes entry-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Konami blossoms fall and sway; coffee steam drifts. Both respect reduced motion
+   (the effects are never started in that case, this is a second safety net). */
+.petal {
+  animation-name: petal-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  will-change: transform;
+}
+@keyframes petal-fall {
+  from {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate3d(4vw, 50vh, 0) rotate(160deg);
+  }
+  to {
+    transform: translate3d(-2vw, 110vh, 0) rotate(320deg);
+    opacity: 0.9;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .steam {
+    animation: steam 2.4s ease-in-out infinite;
+  }
+}
+@keyframes steam {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateX(3px);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .petal {
+    display: none;
+  }
+}
+
+/* Thin scrollbars that match the theme. */
+.terminal-screen {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+.terminal-screen::-webkit-scrollbar {
+  width: 8px;
+}
+.terminal-screen::-webkit-scrollbar-track {
+  background: transparent;
+}
+.terminal-screen::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+.terminal-screen::-webkit-scrollbar-thumb:hover {
   background: var(--color-dim);
 }
 
-/* Selection */
+/* Phones: one swipeable row of chips, fading out at the right edge. */
+@media (max-width: 639px) {
+  .chip-row {
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 85%, transparent);
+    mask-image: linear-gradient(to right, #000 85%, transparent);
+    padding-right: 2rem;
+  }
+  .chip-row::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 ::selection {
   background: var(--color-accent);
   color: var(--color-panel);
 }
 
-/* Accessible focus outline */
-*:focus-visible {
+/* One clear focus ring for every interactive element. */
+:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+.terminal-input:focus-visible {
+  outline: none;
 }

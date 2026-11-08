@@ -1,9 +1,8 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
-  darkMode: ['class', '[data-theme="dark"]'],
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
@@ -31,8 +30,21 @@ const config: Config = {
           prompt: 'var(--color-prompt)',
           accent: 'var(--color-accent)',
           link: 'var(--color-link)',
+          pink: 'var(--color-pink)',
+          violet: 'var(--color-violet)',
+          red: 'var(--color-red)',
           border: 'var(--color-border)',
+          'border-strong': 'var(--color-border-strong)',
         },
+      },
+      keyframes: {
+        blink: {
+          '0%, 49%': { opacity: '1' },
+          '50%, 100%': { opacity: '0' },
+        },
+      },
+      animation: {
+        blink: 'blink 1s step-end infinite',
       },
     },
   },
