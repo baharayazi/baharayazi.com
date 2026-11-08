@@ -96,7 +96,7 @@ export const profile: ProfileData = {
   meta: {
     title: 'Bahar Ayazi — Software engineer and MASc researcher',
     description:
-      'Bahar Ayazi is a software engineer and MASc student in Electrical and Computer Engineering at the University of Victoria, with a background in backend systems and a growing interest in machine learning and security.',
+      'Bahar Ayazi is a software engineer and MASc student in Computer Engineering at the University of Victoria, with a background in backend systems and a growing interest in machine learning and security.',
     canonicalUrl: 'https://baharayazi.com/',
     prompt: 'bahar@baharayazi.com:~$',
     windowTitle: 'bahar@baharayazi.com',
@@ -104,12 +104,12 @@ export const profile: ProfileData = {
   },
   whoami: {
     name: 'Bahar Ayazi',
-    line1: 'Software engineer · MASc ECE student at the University of Victoria',
+    line1: 'Software engineer · MASc student in Computer Engineering at the University of Victoria',
     line2:
       'Backend systems and APIs, now exploring machine learning and security in grad school.',
     facts: [
       { label: 'role', value: 'Software engineer, 3+ years in backend' },
-      { label: 'study', value: 'MASc ECE · University of Victoria' },
+      { label: 'study', value: 'MASc Computer Engineering · University of Victoria' },
       { label: 'exploring', value: 'Machine learning · security · systems' },
       { label: 'shipped', value: 'APIs at 1.2M+ requests/day · banking middleware · payments' },
       { label: 'speaks', value: 'English · Persian' },
@@ -118,7 +118,7 @@ export const profile: ProfileData = {
   },
   about: {
     paragraph1:
-      'I am a software engineer with 3+ years of experience building reliable backend systems, APIs and data pipelines, now an MASc student in Electrical and Computer Engineering at the University of Victoria.',
+      'I am a software engineer with 3+ years of experience building reliable backend systems, APIs and data pipelines, now an MASc student in Computer Engineering at the University of Victoria.',
     paragraph2:
       'In industry I optimized slow APIs and databases, automated manual financial workflows, and integrated new platforms with legacy systems. In grad school I am exploring machine learning and security through research and coursework, and I care about reproducible, well-tested work.',
     paragraph3:
@@ -239,7 +239,7 @@ export const profile: ProfileData = {
   ],
   education: [
     {
-      degree: 'MASc, Electrical and Computer Engineering',
+      degree: 'MASc, Computer Engineering',
       institution: 'University of Victoria',
       period: 'Sep 2026 – present',
       details: [

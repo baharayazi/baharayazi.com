@@ -21,7 +21,7 @@ function buildCommits(): Commit[] {
   const commits: Commit[] = [
     {
       date: masc.period.split(' – ')[0],
-      message: `feat: start ${masc.degree.split(',')[0]} in ECE at ${masc.institution}`,
+      message: `feat: start ${masc.degree.replace(',', ' in')} at ${masc.institution}`,
     },
     ...profile.experience.map((job) => ({
       date: job.period.split(' – ')[0],

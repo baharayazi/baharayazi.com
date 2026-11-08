@@ -43,7 +43,7 @@ async function runTests() {
     console.log('  ✔ Page heading rendered for search engines and screen readers');
 
     const whoamiText = await page.$eval('div[role="log"]', (el) => el.textContent);
-    assert(whoamiText.includes('Software engineer · MASc ECE student at the University of Victoria'));
+    assert(whoamiText.includes('Software engineer · MASc student in Computer Engineering at the University of Victoria'));
     assert(whoamiText.includes('Machine learning · security · systems'));
     assert(whoamiText.includes('Type help, or tap a command below.'));
     console.log('  ✔ whoami initial output matches specifications exactly');
@@ -117,7 +117,7 @@ async function runTests() {
     // education
     await sendCommand('education');
     logText = await page.$eval('div[role="log"]', (el) => el.textContent);
-    assert(logText.includes('MASc, Electrical and Computer Engineering'));
+    assert(logText.includes('MASc, Computer Engineering'));
     assert(logText.includes('University of Victoria · Sep 2026 – present'));
     assert(logText.includes('BSc, Mechanical Engineering (Biosystems)'));
     assert(logText.includes('Isfahan University of Technology · 2018 – 2022'));
