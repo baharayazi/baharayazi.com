@@ -6,7 +6,9 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://baharayazi.com'),
   title: profile.meta.title,
   description: profile.meta.description,
+  applicationName: profile.whoami.name,
   authors: [{ name: profile.whoami.name, url: profile.meta.canonicalUrl }],
+  manifest: '/site.webmanifest',
   alternates: {
     canonical: profile.meta.canonicalUrl,
   },
