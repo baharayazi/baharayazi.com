@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "preview": "npx --yes serve out -l 4173",
+    "test:e2e": "node scripts/test-portfolio.mjs"
   },
   "dependencies": {
     "next": "^15.1.7",
