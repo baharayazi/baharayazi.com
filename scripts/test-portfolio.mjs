@@ -36,18 +36,15 @@ async function runTests() {
     await page.goto(BASE_URL, { waitUntil: 'networkidle0' });
 
     // Wait for auto-typing "whoami" to finish and display output
-    await page.waitForFunction(
-      () => document.querySelector('h1')?.textContent?.includes('Bahar Ayazi'),
-      { timeout: 5000 }
-    );
+    await page.waitForSelector('#terminal-command-input', { timeout: 5000 });
 
     const heading = await page.$eval('h1', (el) => el.textContent?.trim());
-    assert.equal(heading, 'Bahar Ayazi');
-    console.log('  ✔ Heading rendered: "Bahar Ayazi"');
+    assert(heading.startsWith('Bahar Ayazi'), `Unexpected h1: ${heading}`);
+    console.log('  ✔ Page heading rendered for search engines and screen readers');
 
     const whoamiText = await page.$eval('div[role="log"]', (el) => el.textContent);
     assert(whoamiText.includes('Software engineer · MASc ECE student at the University of Victoria'));
-    assert(whoamiText.includes('Backend and distributed systems, moving toward machine learning, AI and security.'));
+    assert(whoamiText.includes('Machine learning · security · systems'));
     assert(whoamiText.includes('Type help, or tap a command below.'));
     console.log('  ✔ whoami initial output matches specifications exactly');
 
@@ -74,9 +71,8 @@ async function runTests() {
     // about
     await sendCommand('about');
     let logText = await page.$eval('div[role="log"]', (el) => el.textContent);
-    assert(logText.includes('I am a software engineer turned graduate researcher.'));
-    assert(logText.includes('Today I am moving toward machine learning and security.'));
-    assert(logText.includes('I am looking for internships and collaborations in ML, AI and security.'));
+    assert(logText.includes('3+ years of experience building reliable backend systems'));
+    assert(logText.includes('exploring machine learning and security'));
     console.log('  ✔ "about" command passed');
 
     // experience
@@ -86,17 +82,17 @@ async function runTests() {
     assert(logText.includes('ActiveCleaners'));
     assert(logText.includes('Tradido'));
     assert(logText.includes('SnappCarfix'));
-    assert(logText.includes('Refactored a legacy internal platform into a modular architecture.'));
-    assert(logText.includes('Designed a concurrency-safe wallet and payment architecture'));
+    assert(logText.includes('refactored components into a modular structure'));
+    assert(logText.includes('Designed a concurrency-safe shared wallet and payment architecture'));
     console.log('  ✔ "experience" command passed');
 
     // projects
     await sendCommand('projects');
     logText = await page.$eval('div[role="log"]', (el) => el.textContent);
-    assert(logText.includes('Selected work'));
-    assert(logText.includes('One wallet across two systems'));
-    assert(logText.includes('Inventory API, minutes to milliseconds'));
-    assert(logText.includes('Automated refunds'));
+    assert(logText.includes('Selected projects'));
+    assert(logText.includes('RAFE: Reliability-Aware Fraud Evidence Fusion'));
+    assert(logText.includes('Paper2Slides'));
+    assert(logText.includes('CrediChain'));
     assert(logText.includes('More on github.com/baharayazi.'));
     console.log('  ✔ "projects" command passed');
 
@@ -104,35 +100,35 @@ async function runTests() {
     await sendCommand('research');
     logText = await page.$eval('div[role="log"]', (el) => el.textContent);
     assert(logText.includes('MASc research, University of Victoria'));
-    assert(logText.includes('Anomaly detection in cybersecurity.'));
-    assert(logText.includes('machine learning, AI, cybersecurity and distributed systems.'));
-    assert(logText.includes('Papers and project write-ups will be added here.'));
+    assert(logText.includes('Machine learning for system security'));
     console.log('  ✔ "research" command passed');
 
     // skills
     await sendCommand('skills');
     logText = await page.$eval('div[role="log"]', (el) => el.textContent);
-    assert(logText.includes('Languages:'));
-    assert(logText.includes('Python, SQL'));
-    assert(logText.includes('Frameworks:'));
-    assert(logText.includes('Kafka, Redis, Zookeeper, Consul, ActiveMQ, Celery'));
-    assert(logText.includes('PostgreSQL, MySQL, MSSQL'));
-    assert(logText.includes('English (C1), Persian (native)'));
+    assert(logText.includes('Languages'));
+    assert(logText.includes('Python · SQL'));
+    assert(logText.includes('Frameworks'));
+    assert(logText.includes('Kafka · Redis · ZooKeeper · Consul · ActiveMQ · Elasticsearch · Celery'));
+    assert(logText.includes('PostgreSQL · MySQL · MSSQL'));
+    assert(logText.includes('English (C1 / IELTS 7.0) · Persian (native)'));
     console.log('  ✔ "skills" command passed');
 
     // education
     await sendCommand('education');
     logText = await page.$eval('div[role="log"]', (el) => el.textContent);
-    assert(logText.includes('MASc, Electrical and Computer Engineering — University of Victoria · 2026 – present'));
-    assert(logText.includes('BSc, Mechanical Engineering (Biosystems) — Isfahan University of Technology · 2018 – 2022'));
+    assert(logText.includes('MASc, Electrical and Computer Engineering'));
+    assert(logText.includes('University of Victoria · Sep 2026 – present'));
+    assert(logText.includes('BSc, Mechanical Engineering (Biosystems)'));
+    assert(logText.includes('Isfahan University of Technology · 2018 – 2022'));
     console.log('  ✔ "education" command passed');
 
     // contact
     await sendCommand('contact');
     logText = await page.$eval('div[role="log"]', (el) => el.textContent);
     assert(logText.includes('bahar@baharayazi.com'));
-    assert(logText.includes('https://www.linkedin.com/in/baharayazi'));
-    assert(logText.includes('https://github.com/baharayazi'));
+    assert(logText.includes('linkedin.com/in/baharayazi'));
+    assert(logText.includes('github.com/baharayazi'));
     console.log('  ✔ "contact" command passed');
 
     // cv
@@ -161,6 +157,14 @@ async function runTests() {
     logText = await page.$eval('div[role="log"]', (el) => el.textContent);
     assert(logText.includes('Nice try. There is no root access here.'));
     console.log('  ✔ "sudo" response passed');
+
+    // playful replies to destructive commands
+    for (const [cmd, needle] of [['rm -rf /', 'Read-only file system'], ["' OR '1'='1", 'Bobby Tables'], ['<script>alert(1)</script>', 'very sad string'], ['coffee', 'Brewing a fresh cup'], ['git log', 'HEAD -> main'], ['vim', 'stuck in vim']]) {
+      await sendCommand(cmd);
+      logText = await page.$eval('div[role="log"]', (el) => el.textContent);
+      assert(logText.includes(needle), `"${cmd}" should reply with "${needle}"`);
+    }
+    console.log('  ✔ easter eggs and extras reply');
 
     // unknown command
     await sendCommand('unknowncmdtest');
@@ -304,8 +308,8 @@ async function runTests() {
     await pageMotion.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
     // In reduced-motion mode, typing must be skipped and output immediately visible
     await new Promise((r) => setTimeout(r, 100));
-    const reducedMotionHeading = await pageMotion.$eval('h1', (el) => el.textContent?.trim());
-    assert.equal(reducedMotionHeading, 'Bahar Ayazi');
+    const reducedMotionLog = await pageMotion.$eval('div[role="log"]', (el) => el.textContent);
+    assert(reducedMotionLog.includes('Software engineer'));
     console.log('  ✔ prefers-reduced-motion immediately renders without typing delays');
     await pageMotion.close();
 
