@@ -3,13 +3,16 @@ import { profile } from '@/content/profile';
 
 export const CvOutput: React.FC = () => {
   return (
-    <div className="leading-relaxed">
+    <div className="flex flex-wrap items-center gap-3">
       <a
         href={profile.cv.href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-term-link underline hover:opacity-80 focus-visible:ring-1 focus-visible:ring-term-link focus-visible:outline-none rounded"
+        className="inline-flex items-center gap-2 rounded-md border border-term-border bg-term-bar px-3 py-1.5 text-term-text transition-colors hover:border-term-prompt"
       >
+        <span className="text-term-prompt" aria-hidden="true">
+          ↓
+        </span>
         {profile.cv.text}
       </a>
     </div>
