@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { sfx } from '@/lib/sound';
 
 interface ThemeToggleProps {
   theme: 'dark' | 'light';
@@ -13,10 +14,13 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ theme, onToggle }) => 
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={() => {
+        sfx.tap();
+        onToggle();
+      }}
       aria-label={`Switch to ${nextTheme} theme`}
       title={`Switch to ${nextTheme} theme (or type "theme")`}
-      className="relative z-10 flex items-center gap-1 rounded-md border border-term-border px-2 py-0.5 font-mono text-xs text-term-dim transition-colors hover:border-term-dim hover:text-term-text"
+      className="toolbar-btn"
     >
       <span aria-hidden="true">{theme === 'dark' ? '☾' : '☼'}</span>
       <span>{theme}</span>
