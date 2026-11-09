@@ -28,6 +28,9 @@ export type OutputType =
   | 'uptime'
   | 'matrix'
   | 'konami'
+  | 'game'
+  | 'sound'
+  | 'quick'
   | 'not_found'
   | 'empty';
 
@@ -65,7 +68,24 @@ export const COMMAND_MAP: Record<string, OutputType> = {
   time: 'date',
   uptime: 'uptime',
   matrix: 'matrix',
+  game: 'game',
+  play: 'game',
 };
+
+/** Words that open the one-page Quick view. */
+const QUICK_WORDS = new Set(['quick', 'quickview', 'gui', 'tldr', 'recruiter']);
+
+/** Sections that get their own shareable link: baharayazi.com/?cmd=projects */
+export const SHAREABLE_SECTIONS = new Set<OutputType>([
+  'about',
+  'experience',
+  'projects',
+  'research',
+  'skills',
+  'education',
+  'contact',
+  'cv',
+]);
 
 /** Commands offered by Tab completion. */
 export const COMPLETIONS = [
@@ -74,6 +94,8 @@ export const COMPLETIONS = [
   'cat bahar.txt',
   'theme',
   'clear',
+  'quick',
+  'sound',
 ];
 
 /** Verbs that take a section as their argument: `cd projects`, `cat about`. */
@@ -86,6 +108,8 @@ export type ParsedCommand =
   | { kind: 'sudo' }
   | { kind: 'mischief'; error: string; quip: string }
   | { kind: 'fun'; lines: string[] }
+  | { kind: 'sound'; value: 'on' | 'off' | 'toggle' }
+  | { kind: 'quick' }
   | { kind: 'output'; type: OutputType }
   | { kind: 'not_found' };
 
@@ -111,6 +135,13 @@ export function parseCommand(raw: string): ParsedCommand {
   }
 
   if (name === 'clear' || name === 'cls') return { kind: 'clear' };
+  if (name === 'sound' || name === 'mute' || name === 'unmute') {
+    const arg = tokens[1];
+    if (name === 'mute' || arg === 'off') return { kind: 'sound', value: 'off' };
+    if (name === 'unmute' || arg === 'on') return { kind: 'sound', value: 'on' };
+    return { kind: 'sound', value: 'toggle' };
+  }
+  if (QUICK_WORDS.has(name)) return { kind: 'quick' };
   if (name === 'theme') return { kind: 'theme' };
 
   const type = COMMAND_MAP[name];

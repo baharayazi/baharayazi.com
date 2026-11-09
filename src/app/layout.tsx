@@ -126,7 +126,7 @@ export default function RootLayout({
 
         <footer className="mt-3 flex w-full max-w-[880px] flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 font-mono text-[11px] text-term-dim sm:text-xs">
           <span>© {year} {profile.whoami.name}</span>
-          <span className="hidden sm:inline">Tab completes · ↑ ↓ history · try “cat about”</span>
+          <span className="hidden sm:inline">Tab completes · ↑ ↓ history · try “game”</span>
         </footer>
       </body>
     </html>

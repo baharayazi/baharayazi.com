@@ -279,7 +279,7 @@ async function runTests() {
     // 6. Test Command Chips
     console.log('\nTest 6: Command chips interaction');
     const chipButtons = await page.$$('nav[aria-label="Quick command shortcuts"] button');
-    assert(chipButtons.length === 12, `Expected 12 chip buttons, got ${chipButtons.length}`);
+    assert(chipButtons.length === 13, `Expected 13 chip buttons, got ${chipButtons.length}`);
 
     // Click "education" chip
     const educationChip = (
@@ -298,6 +298,32 @@ async function runTests() {
     logText = await page.$eval('div[role="log"]', (el) => el.textContent);
     assert(logText.includes('Isfahan University of Technology'));
     console.log('  ✔ Command chips successfully execute commands');
+
+    // 6b. Quick view, sound and game
+    console.log('\nTest 6b: Quick view, sound and game');
+    await sendCommand('quick');
+    await page.waitForSelector('dialog[open] #qv-title', { timeout: 2000 });
+    const quickText = await page.$eval('dialog[open]', (el) => el.textContent);
+    assert(quickText.includes('SnappCarfix') && quickText.includes('CV (PDF)'));
+    await page.keyboard.press('Escape');
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(await page.$('dialog[open]'), null, 'Esc closes the quick view');
+    console.log('  ✔ Quick view opens with every section and closes with Esc');
+
+    await sendCommand('sound on');
+    assert.equal(await page.evaluate(() => localStorage.getItem('bahar_sound')), 'on');
+    await sendCommand('sound off');
+    assert.equal(await page.evaluate(() => localStorage.getItem('bahar_sound')), 'off');
+    console.log('  ✔ sound on/off is remembered');
+
+    await sendCommand('game');
+    logText = await page.$eval('div[role="log"]', (el) => el.textContent);
+    assert(logText.includes('ANOMALY HUNTER'));
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('#terminal-command-input', { timeout: 2000 });
+    logText = await page.$eval('div[role="log"]', (el) => el.textContent);
+    assert(logText.includes('^C Game stopped'));
+    console.log('  ✔ game starts and Esc gives the prompt back');
 
     // 7. Test prefers-reduced-motion
     console.log('\nTest 7: prefers-reduced-motion behavior');

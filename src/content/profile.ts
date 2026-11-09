@@ -286,13 +286,16 @@ export const profile: ProfileData = {
     { command: 'education', description: 'Degrees and coursework' },
     { command: 'contact', description: 'Email, GitHub and LinkedIn' },
     { command: 'cv', description: 'Download my CV' },
+    { command: 'quick', description: 'Everything on one readable page, no typing' },
+    { command: 'game', description: 'Anomaly Hunter: catch the attacks in a live log' },
     { command: 'ls', description: 'List the sections' },
+    { command: 'sound', description: 'Turn sound effects on or off' },
     { command: 'theme', description: 'Switch between dark and light' },
     { command: 'clear', description: 'Clear the screen' },
     { command: 'help', description: 'Show this list' },
   ],
   aliases:
-    'resume → cv, work/jobs → experience, email/links/github/linkedin → contact, ?/man → help, info → whoami. cd, cat and open work too (try: cat about).',
+    'resume → cv, work/jobs → experience, email/links/github/linkedin → contact, ?/man → help, info → whoami, gui/tldr → quick, play → game. cd, cat and open work too (try: cat about). Share a section with a link like baharayazi.com/?cmd=projects.',
   notFound: (input: string) => {
     const truncated = input.length > 40 ? input.slice(0, 40) + '...' : input;
     return `command not found: ${truncated}. Type help for the list.`;
